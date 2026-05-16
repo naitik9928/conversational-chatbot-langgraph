@@ -1,11 +1,87 @@
-# LangGraph Chatbot with Streamlit
+# LangGraph + Groq Multi-Thread Chatbot
 
-A production-ready chatbot built with LangGraph, Groq's Llama 3.3, and Streamlit. Features persistent conversation memory through checkpointing and clean separation between backend state management and frontend UI.
+A multi-conversation AI chatbot built using LangGraph, Groq, Streamlit, and SQLite memory.
 
-## Features
+---
 
-- **LangGraph State Management**: Graph-based conversation flow with checkpointer memory
-- **Streamlit Frontend**: Clean chat interface with message history persistence
-- **Groq LLM Integration**: Powered by Llama 3.3 70B for fast, high-quality responses
-- **Conversation Memory**: Thread-based chat history using InMemorySaver
-- **Modular Architecture**: Separation of backend logic and frontend presentation
+# Features
+
+- Real-time streaming responses
+- Persistent chat memory
+- Multiple chat threads
+- Conversation switching
+- SQLite checkpoint storage
+- Streamlit chat interface
+
+---
+
+# Tech Stack
+
+| Technology | Usage |
+|---|---|
+| LangGraph | Workflow orchestration |
+| Groq | LLM inference |
+| Streamlit | Frontend UI |
+| SQLite | Persistent memory |
+| LangChain | Message handling |
+
+---
+
+# Installation
+
+## Clone Repository
+
+```bash
+git clone <your-repo-link>
+cd <repo-name>
+```
+
+## Create Virtual Environment
+
+```bash
+python -m venv venv
+```
+
+## Activate Environment
+
+### Windows
+
+```bash
+venv\Scripts\activate
+```
+
+### Linux / Mac
+
+```bash
+source venv/bin/activate
+```
+
+## Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# Environment Variables
+
+Create a `.env` file:
+
+```env
+GROQ_API_KEY=your_api_key_here
+```
+
+---
+
+# Run Application
+
+```bash
+streamlit run chat_groq_frontEnd.py
+```
+
+---
+
+# Author
+
+Built by Naitik using LangGraph + Groq + Streamlit.
