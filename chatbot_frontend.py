@@ -1,4 +1,4 @@
-from chatbot_groq import retriver,ChatBot
+from streamlit_chatbot_backend import retriver, ChatBot
 import streamlit as st 
 from langchain_core.messages import HumanMessage,AIMessage
 import uuid
