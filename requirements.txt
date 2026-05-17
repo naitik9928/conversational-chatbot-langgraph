@@ -5,3 +5,5 @@ langgraph
 streamlit
 python-dotenv
 duckduckgo-search
+langchain-core
+pydantic
