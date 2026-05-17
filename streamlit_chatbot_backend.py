@@ -25,7 +25,7 @@ def get_current_date(query:str):
 tools=[search_online,get_current_date]
 conn=sqlite3.connect(database="chatbot_backend.db",check_same_thread=False)
 checkpointer=SqliteSaver(conn=conn)
-model = ChatGroq(model="llama-3.3-70b-versatile")
+model = ChatGroq(model="llama3-groq-70b-8192-tool-use-preview")
 model_with_tool=model.bind_tools(tools)
 class ChatState(TypedDict):
     messages:Annotated[list[AnyMessage],add_messages]
