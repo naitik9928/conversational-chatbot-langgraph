@@ -4,3 +4,4 @@ langgraph
 streamlit
 python-dotenv
 langgraph-checkpoint-sqlite
+duckduckgo-search
