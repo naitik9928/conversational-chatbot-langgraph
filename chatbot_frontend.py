@@ -1,5 +1,5 @@
-from streamlit_chatbot_backend import retriver, ChatBot
-import streamlit as st 
+from chatbot_groq import retriver,ChatBot
+import streamlit as st
 from langchain_core.messages import HumanMessage,AIMessage
 import uuid
 
@@ -63,10 +63,10 @@ if user_input:
         def ai_only_message():
             for chunk,_ in ChatBot.stream(
                 {"messages":[HumanMessage(content=user_input)]},
-                config={"configurable":{"thread_id":st.session_state["thread_id"]}},
+                config={"configurable":{"thread_id":st.session_state["thread_id"]},"metadata":{"thread_id":st.session_state["thread_id"]},"run_name":"chat_turn"},
                 stream_mode="messages"                
             ):
-                if isinstance(chunk,AIMessage):
+                if isinstance(chunk,AIMessage) and chunk.content and not chunk.tool_calls:
                     yield chunk.content
         response=st.write_stream(ai_only_message())
     st.session_state["message_history"].append({"role":"assistant","messages":response})
