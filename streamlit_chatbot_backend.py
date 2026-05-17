@@ -9,6 +9,8 @@ from langchain.tools import tool
 from langgraph.prebuilt import ToolNode,tools_condition
 import sqlite3
 from langchain_community.tools import DuckDuckGoSearchResults
+from langchain_google_genai import ChatGoogleGenerativeAI
+import os
 load_dotenv()
 search=DuckDuckGoSearchResults()
 @tool
@@ -25,7 +27,10 @@ def get_current_date(query:str):
 tools=[search_online,get_current_date]
 conn=sqlite3.connect(database="chatbot_backend.db",check_same_thread=False)
 checkpointer=SqliteSaver(conn=conn)
-model = ChatGroq(model="openai/gpt-oss-120b")
+model = ChatGoogleGenerativeAI(
+    model="gemini-2.0-flash",
+    google_api_key=os.getenv("GOOGLE_API_KEY")
+)
 model_with_tool=model.bind_tools(tools)
 class ChatState(TypedDict):
     messages:Annotated[list[AnyMessage],add_messages]
