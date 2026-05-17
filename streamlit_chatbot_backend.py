@@ -8,9 +8,9 @@ from langchain_core.messages import SystemMessage,AnyMessage
 from langchain.tools import tool
 from langgraph.prebuilt import ToolNode,tools_condition
 import sqlite3
-from langchain_community.tools import DuckDuckGoSearchRun
+from langchain_community.tools import DuckDuckGoSearchResults
 load_dotenv()
-search=DuckDuckGoSearchRun()
+search=DuckDuckGoSearchResults()
 @tool
 def search_online(query:str):
     """Search the web for latest information and news."""
