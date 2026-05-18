@@ -48,7 +48,7 @@ def get_current_date(dummy: str = ""):
 tools = [search_online, get_current_date]
 
 model = ChatOpenAI(
-    model="meta-llama/llama-3.3-70b-instruct:free",
+    model="deepseek/deepseek-chat-v3-0324:free",
     base_url="https://openrouter.ai/api/v1",
     api_key=os.getenv("OPENROUTER_API_KEY"),
     temperature=0.7,
