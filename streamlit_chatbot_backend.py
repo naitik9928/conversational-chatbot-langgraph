@@ -10,7 +10,6 @@ from langchain_core.messages import (
     SystemMessage
 )
 
-from langchain_community.tools import DuckDuckGoSearchRun
 
 from langgraph.graph import (
     StateGraph,
@@ -38,7 +37,9 @@ load_dotenv()
 # SEARCH TOOL
 # =========================================
 
-search = DuckDuckGoSearchRun()
+from tavily import TavilyClient
+
+tavily = TavilyClient()
 
 
 @tool
@@ -47,7 +48,13 @@ def search_online(query: str):
     Search the internet for latest information.
     """
 
-    return search.run(query)
+    response = tavily.search(
+        query=query,
+        search_depth="basic",
+        max_results=5
+    )
+
+    return str(response)
 
 
 @tool
