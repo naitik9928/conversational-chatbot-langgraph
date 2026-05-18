@@ -30,7 +30,7 @@ conn = sqlite3.connect(
 )
 checkpointer=SqliteSaver(conn=conn)
 model = ChatGroq(model="llama-3.3-70b-versatile")
-model_with_tool=model.bind_tools(tools)
+model_with_tools = model.bind_tools(tools)
 class ChatState(TypedDict):
     messages:Annotated[list[AnyMessage],add_messages]
 
