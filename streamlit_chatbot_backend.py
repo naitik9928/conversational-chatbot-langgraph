@@ -24,7 +24,10 @@ def get_current_date(query:str):
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 tools=[search_online,get_current_date]
-conn=sqlite3.connect(database="chatbot_backend.db",check_same_thread=False)
+conn = sqlite3.connect(
+    database=":memory:",
+    check_same_thread=False
+)
 checkpointer=SqliteSaver(conn=conn)
 model = ChatGroq(model="llama-3.3-70b-versatile")
 model_with_tool=model.bind_tools(tools)
