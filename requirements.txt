@@ -7,3 +7,4 @@ python-dotenv
 duckduckgo-search
 ddgs
 langchain-google-genai
+tavily-python
