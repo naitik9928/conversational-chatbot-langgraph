@@ -1,20 +1,10 @@
 import streamlit as st
 import uuid
 
-from langchain_core.messages import (
-    HumanMessage,
-    AIMessage
-)
+from langchain_core.messages import HumanMessage,AIMessage
 
-from streamlit_chatbot_backend import (
-    ChatBot,
-    retriever
-)
+from streamlit_chatbot_backend import ChatBot,get_threads,process_pdf
 
-
-# =========================================
-# PAGE CONFIG
-# =========================================
 
 st.set_page_config(
     page_title="LangGraph ChatBot",
@@ -23,18 +13,11 @@ st.set_page_config(
 )
 
 
-# =========================================
-# GENERATE THREAD ID
-# =========================================
-
 def generate_thread_id():
 
     return str(uuid.uuid4())
 
 
-# =========================================
-# ADD THREAD
-# =========================================
 
 def add_thread(thread_id):
 
@@ -45,9 +28,6 @@ def add_thread(thread_id):
         )
 
 
-# =========================================
-# CLEAR CHAT
-# =========================================
 
 def clear_chat():
 
@@ -56,13 +36,9 @@ def clear_chat():
     new_thread = generate_thread_id()
 
     add_thread(new_thread)
-
+    st.session_state["pdf_memory"] = False
     st.session_state["thread_id"] = new_thread
 
-
-# =========================================
-# LOAD CONVERSATION
-# =========================================
 
 def load_conversation(thread_id):
 
@@ -102,9 +78,6 @@ def load_conversation(thread_id):
     return temp_messages
 
 
-# =========================================
-# SESSION STATE
-# =========================================
 
 if "message_history" not in st.session_state:
 
@@ -119,22 +92,15 @@ if "thread_id" not in st.session_state:
 if "chat_threads" not in st.session_state:
 
     st.session_state["chat_threads"] = list(
-        retriever()
+        get_threads()
     )
-
-
-# =========================================
-# ADD CURRENT THREAD
-# =========================================
+if "pdf_memory" not in st.session_state:
+    st.session_state["pdf_memory"] = False
 
 add_thread(
     st.session_state["thread_id"]
 )
 
-
-# =========================================
-# SIDEBAR
-# =========================================
 
 st.sidebar.title("🤖 LangGraph ChatBot")
 
@@ -145,13 +111,21 @@ if st.sidebar.button("➕ New Chat"):
 
 
 st.sidebar.markdown("---")
+st.sidebar.header("Upload PDF Document")
+upload_pdf=st.sidebar.file_uploader("Choose a PDF file",type="pdf")
+if upload_pdf and not st.session_state["pdf_memory"]:
+    temp_path=f"temp_{upload_pdf.name}"
+    with open(temp_path,"wb") as f:
+        f.write(upload_pdf.read())
+    with st.spinner("Processing PDF..."):
+        process_pdf(temp_path)
+    st.session_state["pdf_memory"] = True
+    st.sidebar.success("PDF processed successfully!")
+
+
+
 
 st.sidebar.subheader("Conversations")
-
-
-# =========================================
-# SHOW SAVED THREADS
-# =========================================
 
 for thread in st.session_state["chat_threads"][::-1]:
 
@@ -168,9 +142,7 @@ for thread in st.session_state["chat_threads"][::-1]:
         st.rerun()
 
 
-# =========================================
-# DISPLAY CHAT HISTORY
-# =========================================
+
 
 for message in st.session_state["message_history"]:
 
@@ -179,34 +151,29 @@ for message in st.session_state["message_history"]:
         st.markdown(message["content"])
 
 
-# =========================================
-# CHAT INPUT
-# =========================================
+
 
 user_input = st.chat_input(
     "Type your message..."
 )
 
 
-# =========================================
-# HANDLE USER INPUT
-# =========================================
 
 if user_input:
 
-    # Save user message
+    
     st.session_state["message_history"].append({
         "role": "user",
         "content": user_input
     })
 
-    # Display user message
+    
     with st.chat_message("user"):
 
         st.markdown(user_input)
 
 
-    # Assistant response
+    
     with st.chat_message("assistant"):
 
         response_placeholder = st.empty()
@@ -255,7 +222,7 @@ if user_input:
             )
 
 
-    # Save assistant response
+    
     st.session_state["message_history"].append({
         "role": "assistant",
         "content": final_response
