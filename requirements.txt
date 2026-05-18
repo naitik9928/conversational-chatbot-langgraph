@@ -7,12 +7,16 @@ langgraph-checkpoint-sqlite
 langchain-openai
 langchain-core
 langchain-community
+langchain-huggingface
 
 openai
 sentence-transformers
+transformers
+torch
+
 python-dotenv
 pypdf
 tavily-python==0.5.0
 
+faiss-cpu
 aiosqlite
-langchain-huggingface
