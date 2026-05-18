@@ -1,19 +1,22 @@
 from dotenv import load_dotenv
+import os
 import sqlite3
 
 from typing import TypedDict, Annotated
 
 from langchain_openai import ChatOpenAI
+
 from langchain.tools import tool
+
 from langchain_core.messages import (
     AnyMessage,
     SystemMessage
 )
 
-
 from langgraph.graph import (
     StateGraph,
-    START
+    START,
+    END
 )
 
 from langgraph.graph.message import add_messages
@@ -25,22 +28,37 @@ from langgraph.prebuilt import (
 
 from langgraph.checkpoint.sqlite import SqliteSaver
 
+from tavily import TavilyClient
+
 
 # =========================================
-# LOAD ENV
+# LOAD ENV VARIABLES
 # =========================================
 
 load_dotenv()
 
 
 # =========================================
-# SEARCH TOOL
+# CHECK API KEY
 # =========================================
 
-from tavily import TavilyClient
+if not os.getenv("OPENROUTER_API_KEY"):
+
+    raise ValueError(
+        "OPENROUTER_API_KEY not found in .env file"
+    )
+
+
+# =========================================
+# TAVILY SEARCH CLIENT
+# =========================================
 
 tavily = TavilyClient()
 
+
+# =========================================
+# TOOLS
+# =========================================
 
 @tool
 def search_online(query: str):
@@ -48,28 +66,36 @@ def search_online(query: str):
     Search the internet for latest information.
     """
 
-    response = tavily.search(
-        query=query,
-        search_depth="basic",
-        max_results=5
-    )
+    try:
 
-    return str(response)
+        response = tavily.search(
+            query=query,
+            search_depth="basic",
+            max_results=5
+        )
+
+        return str(response)
+
+    except Exception as e:
+
+        return f"Search Error: {str(e)}"
 
 
 @tool
-def get_current_date():
+def get_current_date(dummy: str = ""):
     """
     Get the current date and time.
     """
 
     from datetime import datetime
 
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
 
 
 # =========================================
-# TOOLS
+# TOOL LIST
 # =========================================
 
 tools = [
@@ -83,17 +109,23 @@ tools = [
 # =========================================
 
 model = ChatOpenAI(
-    model="deepseek/deepseek-r1:free",
+    model="qwen/qwen-2.5-72b-instruct:free",
     base_url="https://openrouter.ai/api/v1",
     api_key=os.getenv("OPENROUTER_API_KEY"),
-    temperature=0.7
+    temperature=0.7,
+    timeout=60
 )
+
+
+# =========================================
+# BIND TOOLS
+# =========================================
 
 model_with_tools = model.bind_tools(tools)
 
 
 # =========================================
-# SQLITE MEMORY
+# SQLITE DATABASE
 # =========================================
 
 conn = sqlite3.connect(
@@ -101,7 +133,15 @@ conn = sqlite3.connect(
     check_same_thread=False
 )
 
+
+# =========================================
+# CHECKPOINTER
+# =========================================
+
 checkpointer = SqliteSaver(conn)
+
+# IMPORTANT
+checkpointer.setup()
 
 
 # =========================================
@@ -124,7 +164,7 @@ graph = StateGraph(ChatState)
 
 
 # =========================================
-# CHAT NODE
+# CHATBOT NODE
 # =========================================
 
 def chatbot_node(state: ChatState):
@@ -132,17 +172,17 @@ def chatbot_node(state: ChatState):
     system_message = SystemMessage(
         content=(
             "You are a helpful AI assistant.\n"
-            "Use tools for:\n"
-            "- latest news\n"
-            "- current events\n"
-            "- today's date\n"
-            "- real-time information\n"
+            "Use tools whenever real-time or "
+            "external information is needed.\n"
+            "Answer clearly and concisely."
         )
     )
 
     messages = [system_message] + state["messages"]
 
-    response = model_with_tools.invoke(messages)
+    response = model_with_tools.invoke(
+        messages
+    )
 
     return {
         "messages": [response]
@@ -172,7 +212,7 @@ graph.add_node(
 
 
 # =========================================
-# EDGES
+# ADD EDGES
 # =========================================
 
 graph.add_edge(
@@ -190,6 +230,11 @@ graph.add_edge(
     "chatbot"
 )
 
+graph.add_edge(
+    "chatbot",
+    END
+)
+
 
 # =========================================
 # COMPILE GRAPH
@@ -204,15 +249,15 @@ ChatBot = graph.compile(
 # RETRIEVE THREADS
 # =========================================
 
-def retriver():
+def retriever():
 
-    store = set()
+    threads = set()
 
     try:
 
-        for check in checkpointer.list(None):
+        for checkpoint in checkpointer.list(None):
 
-            configurable = check.config.get(
+            configurable = checkpoint.config.get(
                 "configurable",
                 {}
             )
@@ -223,9 +268,12 @@ def retriver():
 
             if thread_id:
 
-                store.add(thread_id)
+                threads.add(thread_id)
 
-    except:
-        pass
+    except Exception as e:
 
-    return store
+        print(
+            f"Retriever Error: {str(e)}"
+        )
+
+    return threads
