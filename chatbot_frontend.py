@@ -9,9 +9,9 @@ from langchain_core.messages import (
 )
 
 
-# =========================
+# =====================================
 # PAGE CONFIG
-# =========================
+# =====================================
 
 st.set_page_config(
     page_title="LangGraph ChatBot",
@@ -20,27 +20,28 @@ st.set_page_config(
 )
 
 
-# =========================
+# =====================================
 # THREAD GENERATOR
-# =========================
+# =====================================
 
 def thread_generator():
     return str(uuid.uuid4())
 
 
-# =========================
+# =====================================
 # ADD THREAD
-# =========================
+# =====================================
 
 def add_thread(thread_id):
 
     if thread_id not in st.session_state["chat_threads"]:
+
         st.session_state["chat_threads"].append(thread_id)
 
 
-# =========================
+# =====================================
 # CLEAR CHAT
-# =========================
+# =====================================
 
 def clear_chat():
 
@@ -53,9 +54,9 @@ def clear_chat():
     st.session_state["thread_id"] = new_thread_id
 
 
-# =========================
+# =====================================
 # LOAD CONVERSATION
-# =========================
+# =====================================
 
 def load_conversation(thread_id):
 
@@ -70,37 +71,39 @@ def load_conversation(thread_id):
     return state.values.get("messages", [])
 
 
-# =========================
+# =====================================
 # SESSION STATE
-# =========================
+# =====================================
 
 if "message_history" not in st.session_state:
+
     st.session_state["message_history"] = []
 
 if "thread_id" not in st.session_state:
+
     st.session_state["thread_id"] = thread_generator()
 
 if "chat_threads" not in st.session_state:
+
     st.session_state["chat_threads"] = list(retriver())
 
 
-# =========================
+# =====================================
 # ADD CURRENT THREAD
-# =========================
+# =====================================
 
 add_thread(st.session_state["thread_id"])
 
 
-# =========================
+# =====================================
 # SIDEBAR
-# =========================
+# =====================================
 
 st.sidebar.title("🤖 LangGraph ChatBot")
 
-
 if st.sidebar.button("➕ New Chat"):
-    clear_chat()
 
+    clear_chat()
 
 st.sidebar.header("Conversations")
 
@@ -138,9 +141,9 @@ for thread in st.session_state["chat_threads"][::-1]:
         st.rerun()
 
 
-# =========================
+# =====================================
 # DISPLAY CHAT HISTORY
-# =========================
+# =====================================
 
 for message in st.session_state["message_history"]:
 
@@ -149,31 +152,31 @@ for message in st.session_state["message_history"]:
         st.markdown(message["messages"])
 
 
-# =========================
+# =====================================
 # CHAT INPUT
-# =========================
+# =====================================
 
 user_input = st.chat_input("Type your message...")
 
 
-# =========================
+# =====================================
 # HANDLE USER INPUT
-# =========================
+# =====================================
 
 if user_input:
 
-    # Save User Message
+    # Save user message
     st.session_state["message_history"].append({
         "role": "user",
         "messages": user_input
     })
 
-    # Display User Message
+    # Display user message
     with st.chat_message("user"):
 
         st.markdown(user_input)
 
-    # Assistant Response
+    # Assistant message
     with st.chat_message("assistant"):
 
         def stream_response():
@@ -194,27 +197,30 @@ if user_input:
                     }
                 },
 
-                stream_mode="values"
+                stream_mode="updates"
 
             ):
 
-                messages = event["messages"]
+                for node_name, node_output in event.items():
 
-                last_message = messages[-1]
+                    if "messages" in node_output:
 
-                if (
-                    isinstance(last_message, AIMessage)
-                    and last_message.content
-                    and not last_message.tool_calls
-                ):
+                        messages = node_output["messages"]
 
-                    final_response = last_message.content
+                        for msg in messages:
+
+                            if (
+                                isinstance(msg, AIMessage)
+                                and msg.content
+                            ):
+
+                                final_response = msg.content
 
             yield final_response
 
         response = st.write_stream(stream_response())
 
-    # Save Assistant Message
+    # Save assistant response
     st.session_state["message_history"].append({
         "role": "assistant",
         "messages": response
