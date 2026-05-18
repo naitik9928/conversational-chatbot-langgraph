@@ -1,53 +1,222 @@
-from langchain_groq import ChatGroq
 from dotenv import load_dotenv
-from langgraph.graph import START,END,StateGraph
-from typing import Annotated,TypedDict
-from langgraph.checkpoint.sqlite import SqliteSaver
-from langgraph.graph.message import add_messages
-from langchain_core.messages import SystemMessage,AnyMessage
-from langchain.tools import tool
-from langgraph.prebuilt import ToolNode,tools_condition
 import sqlite3
+
+from typing import TypedDict, Annotated
+
+from langchain_groq import ChatGroq
+from langchain.tools import tool
+from langchain_core.messages import (
+    AnyMessage,
+    SystemMessage
+)
+
 from langchain_community.tools import DuckDuckGoSearchRun
+
+from langgraph.graph import (
+    StateGraph,
+    START
+)
+
+from langgraph.graph.message import add_messages
+
+from langgraph.prebuilt import (
+    ToolNode,
+    tools_condition
+)
+
+from langgraph.checkpoint.sqlite import SqliteSaver
+
+
+# =========================================
+# LOAD ENV
+# =========================================
+
 load_dotenv()
-search=DuckDuckGoSearchRun()
+
+
+# =========================================
+# SEARCH TOOL
+# =========================================
+
+search = DuckDuckGoSearchRun()
+
+
 @tool
-def search_online(query:str):
-    """Search the web for latest information and news."""
-    response=search.invoke(query)
-    return response
+def search_online(query: str):
+    """
+    Search the internet for latest information.
+    """
+
+    return search.run(query)
+
+
 @tool
-def get_current_date(query:str):
-    """Get the current date and time."""
+def get_current_date():
+    """
+    Get the current date and time.
+    """
+
     from datetime import datetime
+
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-tools=[search_online,get_current_date]
-conn=sqlite3.connect(database="chatbot_backend.db",check_same_thread=False)
-checkpointer=SqliteSaver(conn=conn)
-model = ChatGroq(
-    model="llama-3.1-8b-instant"
-)
-model_with_tool=model.bind_tools(tools)
-class ChatState(TypedDict):
-    messages:Annotated[list[AnyMessage],add_messages]
 
-graph=StateGraph(ChatState)
-def chat_node(state:ChatState):
-    system=SystemMessage(content="You are a helpfull ai assistant answer carefully and precise to the cotent and you can acess tools !")
-    message=[system]+state["messages"]
-    response=model_with_tool.invoke(message)
-    return {"messages":[response]}
-tool_node=ToolNode(tools)
-graph.add_node("chat_node",chat_node)
-graph.add_edge(START,"chat_node")
-graph.add_node("tools",tool_node)
-graph.add_conditional_edges("chat_node",tools_condition)
-graph.add_edge("tools","chat_node")
-ChatBot=graph.compile(checkpointer=checkpointer)
+# =========================================
+# TOOLS
+# =========================================
+
+tools = [
+    search_online,
+    get_current_date
+]
+
+
+# =========================================
+# MODEL
+# =========================================
+
+model = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    temperature=0.7
+)
+
+model_with_tools = model.bind_tools(tools)
+
+
+# =========================================
+# SQLITE MEMORY
+# =========================================
+
+conn = sqlite3.connect(
+    "chatbot.db",
+    check_same_thread=False
+)
+
+checkpointer = SqliteSaver(conn)
+
+
+# =========================================
+# STATE
+# =========================================
+
+class ChatState(TypedDict):
+
+    messages: Annotated[
+        list[AnyMessage],
+        add_messages
+    ]
+
+
+# =========================================
+# GRAPH
+# =========================================
+
+graph = StateGraph(ChatState)
+
+
+# =========================================
+# CHAT NODE
+# =========================================
+
+def chatbot_node(state: ChatState):
+
+    system_message = SystemMessage(
+        content=(
+            "You are a helpful AI assistant.\n"
+            "Use tools for:\n"
+            "- latest news\n"
+            "- current events\n"
+            "- today's date\n"
+            "- real-time information\n"
+        )
+    )
+
+    messages = [system_message] + state["messages"]
+
+    response = model_with_tools.invoke(messages)
+
+    return {
+        "messages": [response]
+    }
+
+
+# =========================================
+# TOOL NODE
+# =========================================
+
+tool_node = ToolNode(tools)
+
+
+# =========================================
+# ADD NODES
+# =========================================
+
+graph.add_node(
+    "chatbot",
+    chatbot_node
+)
+
+graph.add_node(
+    "tools",
+    tool_node
+)
+
+
+# =========================================
+# EDGES
+# =========================================
+
+graph.add_edge(
+    START,
+    "chatbot"
+)
+
+graph.add_conditional_edges(
+    "chatbot",
+    tools_condition
+)
+
+graph.add_edge(
+    "tools",
+    "chatbot"
+)
+
+
+# =========================================
+# COMPILE GRAPH
+# =========================================
+
+ChatBot = graph.compile(
+    checkpointer=checkpointer
+)
+
+
+# =========================================
+# RETRIEVE THREADS
+# =========================================
 
 def retriver():
-    store=set()
-    for check in checkpointer.list(None):
-        store.add(check.config["configurable"]["thread_id"])
+
+    store = set()
+
+    try:
+
+        for check in checkpointer.list(None):
+
+            configurable = check.config.get(
+                "configurable",
+                {}
+            )
+
+            thread_id = configurable.get(
+                "thread_id"
+            )
+
+            if thread_id:
+
+                store.add(thread_id)
+
+    except:
+        pass
+
     return store
