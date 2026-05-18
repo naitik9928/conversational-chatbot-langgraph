@@ -3,7 +3,7 @@ import sqlite3
 
 from typing import TypedDict, Annotated
 
-from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 from langchain.tools import tool
 from langchain_core.messages import (
     AnyMessage,
@@ -82,8 +82,10 @@ tools = [
 # MODEL
 # =========================================
 
-model = ChatGroq(
-    model="llama3-8b-8192",
+model = ChatOpenAI(
+    model="deepseek/deepseek-r1:free",
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.getenv("OPENROUTER_API_KEY"),
     temperature=0.7
 )
 
