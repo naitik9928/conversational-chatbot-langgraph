@@ -8,7 +8,7 @@ from langchain_core.messages import (
 
 from streamlit_chatbot_backend import (
     ChatBot,
-    retriver
+    retriever
 )
 
 
@@ -18,12 +18,13 @@ from streamlit_chatbot_backend import (
 
 st.set_page_config(
     page_title="LangGraph ChatBot",
-    page_icon="🤖"
+    page_icon="🤖",
+    layout="centered"
 )
 
 
 # =========================================
-# THREAD GENERATOR
+# GENERATE THREAD ID
 # =========================================
 
 def generate_thread_id():
@@ -73,10 +74,32 @@ def load_conversation(thread_id):
         }
     )
 
-    return state.values.get(
+    messages = state.values.get(
         "messages",
         []
     )
+
+    temp_messages = []
+
+    for msg in messages:
+
+        if isinstance(msg, HumanMessage):
+
+            role = "user"
+
+        elif isinstance(msg, AIMessage):
+
+            role = "assistant"
+
+        else:
+            continue
+
+        temp_messages.append({
+            "role": role,
+            "content": msg.content
+        })
+
+    return temp_messages
 
 
 # =========================================
@@ -96,7 +119,7 @@ if "thread_id" not in st.session_state:
 if "chat_threads" not in st.session_state:
 
     st.session_state["chat_threads"] = list(
-        retriver()
+        retriever()
     )
 
 
@@ -121,38 +144,26 @@ if st.sidebar.button("➕ New Chat"):
     clear_chat()
 
 
-st.sidebar.header("Conversations")
+st.sidebar.markdown("---")
 
+st.sidebar.subheader("Conversations")
+
+
+# =========================================
+# SHOW SAVED THREADS
+# =========================================
 
 for thread in st.session_state["chat_threads"][::-1]:
 
-    if st.sidebar.button(thread):
+    thread_name = f"Chat {thread[:8]}"
+
+    if st.sidebar.button(thread_name):
 
         st.session_state["thread_id"] = thread
 
-        messages = load_conversation(thread)
-
-        temp_messages = []
-
-        for msg in messages:
-
-            if isinstance(msg, HumanMessage):
-
-                role = "user"
-
-            elif isinstance(msg, AIMessage):
-
-                role = "assistant"
-
-            else:
-                continue
-
-            temp_messages.append({
-                "role": role,
-                "content": msg.content
-            })
-
-        st.session_state["message_history"] = temp_messages
+        st.session_state["message_history"] = (
+            load_conversation(thread)
+        )
 
         st.rerun()
 
@@ -194,30 +205,58 @@ if user_input:
 
         st.markdown(user_input)
 
+
     # Assistant response
     with st.chat_message("assistant"):
 
-        response_data = ChatBot.invoke(
+        response_placeholder = st.empty()
 
-            {
-                "messages": [
-                    HumanMessage(content=user_input)
-                ]
-            },
+        final_response = ""
 
-            config={
-                "configurable": {
-                    "thread_id": st.session_state["thread_id"]
-                }
-            }
-        )
+        try:
 
-        response = response_data["messages"][-1].content
+            for chunk, metadata in ChatBot.stream(
 
-        st.markdown(response)
+                {
+                    "messages": [
+                        HumanMessage(
+                            content=user_input
+                        )
+                    ]
+                },
+
+                config={
+                    "configurable": {
+                        "thread_id": st.session_state["thread_id"]
+                    }
+                },
+
+                stream_mode="messages"
+            ):
+
+                if isinstance(chunk, AIMessage):
+
+                    if chunk.content:
+
+                        final_response += chunk.content
+
+                        response_placeholder.markdown(
+                            final_response
+                        )
+
+        except Exception as e:
+
+            st.error(
+                f"Error: {str(e)}"
+            )
+
+            final_response = (
+                "Something went wrong."
+            )
+
 
     # Save assistant response
     st.session_state["message_history"].append({
         "role": "assistant",
-        "content": response
+        "content": final_response
     })
