@@ -4,14 +4,44 @@ import sqlite3
 from typing import TypedDict, Annotated
 from langchain_openai import ChatOpenAI
 from langchain.tools import tool
-from langchain_core.messages import AnyMessage, SystemMessage
+from langchain_core.messages import AnyMessage, SystemMessage,HumanMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.sqlite import SqliteSaver
 from tavily import TavilyClient
-
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
 load_dotenv()
+retriever_1 = None
+def process_pdf(pdf_path: str):
+    global retriever_1
+    loader=PyPDFLoader(pdf_path)
+    docs = loader.load()
+
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    texts = text_splitter.split_documents(docs)
+
+    embed = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
+
+    vectorstore = FAISS.from_documents(texts, embed)
+    retriever_1 = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
+    return retriever_1
+
+@tool
+def rag_tool(query:str):
+    """use this tool to retrieve relevant information from the uploaded PDF document."""
+    if retriever_1 is None:
+        return "No PDF uploaded. Please upload a PDF to use this tool."
+    docs=retriever_1.invoke(query)
+    context = "\n\n".join(doc.page_content for doc in docs)
+    return context
+
+
 
 if not os.getenv("OPENROUTER_API_KEY"):
     raise ValueError("OPENROUTER_API_KEY not found")
@@ -45,7 +75,7 @@ def get_current_date(dummy: str = ""):
     from datetime import datetime
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-tools = [search_online, get_current_date]
+tools = [search_online, get_current_date,rag_tool]
 
 model = ChatOpenAI(
     model="openrouter/free",
@@ -88,7 +118,7 @@ graph.add_edge("tools", "chatbot")
 
 ChatBot = graph.compile(checkpointer=checkpointer)
 
-def retriever():
+def get_threads():
     threads = set()
     try:
         for checkpoint in checkpointer.list(None):
@@ -99,3 +129,4 @@ def retriever():
     except Exception as e:
         print(f"Retriever Error: {str(e)}")
     return threads
+
